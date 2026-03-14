@@ -1,0 +1,30 @@
+{
+  "name": "@recipe-tracker/domain-worker",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@recipe-tracker/db": "workspace:*",
+    "@recipe-tracker/types": "workspace:*",
+    "@recipe-tracker/recipe-engine": "workspace:*",
+    "@recipe-tracker/shopping-engine": "workspace:*",
+    "bullmq": "^5.25.0",
+    "ioredis": "^5.4.0"
+  },
+  "devDependencies": {
+    "@recipe-tracker/eslint-config": "workspace:*",
+    "@recipe-tracker/typescript-config": "workspace:*",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

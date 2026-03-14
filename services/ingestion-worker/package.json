@@ -1,0 +1,15 @@
+{
+  "name": "@recipe-tracker/ingestion-worker",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "uv run python -m ingestion_worker.main",
+    "build": "uv sync",
+    "start": "uv run python -m ingestion_worker.main",
+    "lint": "uv run ruff check src tests",
+    "lint:fix": "uv run ruff check --fix src tests",
+    "typecheck": "uv run mypy src",
+    "test": "uv run pytest",
+    "clean": "rm -rf dist __pycache__ .pytest_cache .mypy_cache .ruff_cache"
+  }
+}

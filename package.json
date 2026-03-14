@@ -1,0 +1,28 @@
+{
+  "name": "recipe-tracker",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "db:generate": "turbo run db:generate --filter=@recipe-tracker/db",
+    "db:push": "turbo run db:push --filter=@recipe-tracker/db",
+    "db:migrate": "turbo run db:migrate --filter=@recipe-tracker/db",
+    "docker:up": "docker-compose -f infra/docker/docker-compose.yml up -d",
+    "docker:down": "docker-compose -f infra/docker/docker-compose.yml down",
+    "docker:logs": "docker-compose -f infra/docker/docker-compose.yml logs -f"
+  },
+  "devDependencies": {
+    "prettier": "^3.3.0",
+    "turbo": "^2.3.0"
+  }
+}
