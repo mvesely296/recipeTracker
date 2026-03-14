@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import type { ZodSchema } from 'zod';
+import type { ZodType, ZodTypeDef } from 'zod';
 import type { User } from '@supabase/supabase-js';
 import { getAuthenticatedUser, createSupabaseServerClient } from '@/lib/supabase/server';
 import { UnauthorizedError } from './errors';
@@ -21,9 +21,9 @@ export interface RouteHandlerConfig<
   TQuery = unknown,
   TParams = Record<string, string>,
 > {
-  bodySchema?: ZodSchema<TBody>;
-  querySchema?: ZodSchema<TQuery>;
-  paramsSchema?: ZodSchema<TParams>;
+  bodySchema?: ZodType<TBody, ZodTypeDef, unknown>;
+  querySchema?: ZodType<TQuery, ZodTypeDef, unknown>;
+  paramsSchema?: ZodType<TParams, ZodTypeDef, unknown>;
   requireAuth?: boolean;
   handler: (
     request: NextRequest,
@@ -55,9 +55,9 @@ export function createRouteHandler<
       }
 
       // Validate params
-      let validatedParams = resolvedParams;
+      let validatedParams = resolvedParams as TParams;
       if (config.paramsSchema) {
-        validatedParams = config.paramsSchema.parse(resolvedParams);
+        validatedParams = config.paramsSchema.parse(resolvedParams) as TParams;
       }
 
       // Validate query parameters

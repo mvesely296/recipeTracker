@@ -17,8 +17,7 @@
     "@recipe-tracker/types": "workspace:*",
     "@recipe-tracker/recipe-engine": "workspace:*",
     "@recipe-tracker/shopping-engine": "workspace:*",
-    "bullmq": "^5.25.0",
-    "ioredis": "^5.4.0"
+    "bullmq": "^5.25.0"
   },
   "devDependencies": {
     "@recipe-tracker/eslint-config": "workspace:*",

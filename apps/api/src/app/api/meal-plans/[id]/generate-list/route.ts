@@ -22,7 +22,7 @@ export const POST = createRouteHandler({
         )
       `
       )
-      .eq('week', params.week)
+      .eq('week', params.id)
       .eq('user_id', user.id)
       .single();
 
@@ -36,7 +36,7 @@ export const POST = createRouteHandler({
       .insert({
         user_id: user.id,
         meal_plan_id: mealPlan.id,
-        week: params.week,
+        week: params.id,
         status: 'draft',
       })
       .select()
@@ -56,7 +56,7 @@ export const POST = createRouteHandler({
     return successResponse(
       {
         shoppingListId: shoppingList.id,
-        week: params.week,
+        week: params.id,
         itemCount: 0, // Would be computed
         status: 'draft',
       },

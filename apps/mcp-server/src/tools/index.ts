@@ -139,7 +139,7 @@ export const tools: Tool[] = [
 
 export async function handleToolCall(
   name: string,
-  args: Record<string, unknown> | undefined
+  _args: Record<string, unknown> | undefined
 ): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
   // TODO: Implement actual tool handlers
   // For now, return stub responses

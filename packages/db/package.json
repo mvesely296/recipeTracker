@@ -28,13 +28,13 @@
   },
   "dependencies": {
     "@recipe-tracker/types": "workspace:*",
-    "drizzle-orm": "^0.35.0",
+    "drizzle-orm": "^0.45.1",
     "postgres": "^3.4.0"
   },
   "devDependencies": {
     "@recipe-tracker/eslint-config": "workspace:*",
     "@recipe-tracker/typescript-config": "workspace:*",
-    "drizzle-kit": "^0.27.0",
+    "drizzle-kit": "^0.31.9",
     "typescript": "^5.7.0"
   }
 }

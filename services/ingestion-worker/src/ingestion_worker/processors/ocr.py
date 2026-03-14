@@ -1,36 +1,78 @@
-"""OCR processing for recipe images."""
+"""OCR processing for recipe images using OpenAI Vision."""
 
+import os
 from typing import Any
 
+import httpx
 import structlog
+
+from .. import db
+from ..llm import extract_text_from_image, structure_recipe_from_text
+from ..models import ExtractedRecipe
 
 log = structlog.get_logger()
 
 
-async def process_ocr(job: dict[str, Any]) -> dict[str, Any]:
-    """
-    Process an image using OCR to extract recipe text.
+async def _download_image(job: dict[str, Any]) -> tuple[bytes, str]:
+    """Download image from Supabase storage or direct URL. Returns (data, media_type)."""
+    source_media_id = job.get("source_media_id", "")
+    source_url = job.get("source_url")
 
-    Args:
-        job: Job data containing source_media_id or image URL
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        if source_url:
+            # Direct URL
+            response = await client.get(source_url, follow_redirects=True)
+            response.raise_for_status()
+            content_type = response.headers.get("content-type", "image/jpeg")
+            return response.content, content_type
 
-    Returns:
-        Extracted text and structured recipe data
-    """
-    source_media_id = job.get("source_media_id")
+        # Supabase storage path
+        supabase_url = os.getenv("SUPABASE_URL", "")
+        supabase_key = os.getenv("SUPABASE_SERVICE_KEY", "")
+        storage_url = f"{supabase_url}/storage/v1/object/{source_media_id}"
+
+        response = await client.get(
+            storage_url,
+            headers={"Authorization": f"Bearer {supabase_key}"},
+            follow_redirects=True,
+        )
+        response.raise_for_status()
+        content_type = response.headers.get("content-type", "image/jpeg")
+        return response.content, content_type
+
+
+async def process_ocr(job: dict[str, Any]) -> ExtractedRecipe:
+    """Process an image using OpenAI Vision to extract a recipe."""
+    job_id = job.get("id", "")
+    user_id = job.get("user_id", "")
+    source_media_id = job.get("source_media_id", "")
 
     log.info("Processing OCR", source_media_id=source_media_id)
 
-    # TODO: Implement actual OCR processing
-    # 1. Download image from storage
-    # 2. Run OCR (pytesseract or cloud service)
-    # 3. Parse extracted text
-    # 4. Structure into recipe format
+    # Download image
+    image_data, media_type = await _download_image(job)
 
-    return {
-        "status": "completed",
-        "source_media_id": source_media_id,
-        "extracted_text": "",  # TODO: Actual OCR result
-        "structured_recipe": None,  # TODO: Parsed recipe
-        "confidence_score": 0.0,
-    }
+    # Extract text via OpenAI Vision
+    ocr_text = await extract_text_from_image(image_data, media_type)
+    if not ocr_text:
+        raise ValueError("OCR extracted no text from image")
+
+    # Store OCR result as artifact
+    await db.insert_artifact(
+        job_id, "ocr_result", ocr_text, {"source_media_id": source_media_id}
+    )
+
+    # Structure via LLM
+    recipe = await structure_recipe_from_text(ocr_text, "OCR text from recipe photo")
+    recipe.confidence_score = 0.4
+
+    # Store extracted draft
+    await db.insert_artifact(
+        job_id, "extracted_draft", recipe.model_dump_json(), {"source": "ocr_llm"}
+    )
+
+    # Insert recipe into database
+    recipe_id = await db.insert_recipe(user_id, recipe, "image", None, job_id)
+    log.info("Recipe created from image", recipe_id=recipe_id, title=recipe.title)
+
+    return recipe

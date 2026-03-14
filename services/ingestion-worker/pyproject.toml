@@ -5,12 +5,13 @@ description = "Recipe ingestion worker for OCR and video parsing"
 requires-python = ">=3.12"
 dependencies = [
     "redis>=5.0.0",
-    "pillow>=10.0.0",
-    "pytesseract>=0.3.10",
     "openai>=1.50.0",
     "pydantic>=2.9.0",
     "structlog>=24.4.0",
     "httpx>=0.27.0",
+    "psycopg[binary]>=3.2.0",
+    "youtube-transcript-api>=1.0.0",
+    "beautifulsoup4>=4.12.0",
 ]
 
 [project.optional-dependencies]

@@ -1,12 +1,14 @@
 import { Worker } from 'bullmq';
-import IORedis from 'ioredis';
 import { processMealPlan } from './processors/meal-plan';
 import { processShoppingList } from './processors/shopping-list';
 import { processSubstitution } from './processors/substitution';
 
-const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
+const redisUrl = new URL(process.env.REDIS_URL || 'redis://localhost:6379');
+const connection = {
+  host: redisUrl.hostname,
+  port: Number(redisUrl.port) || 6379,
   maxRetriesPerRequest: null,
-});
+};
 
 // Meal plan expansion worker
 const mealPlanWorker = new Worker(
@@ -57,6 +59,5 @@ console.log('Domain worker started');
 process.on('SIGTERM', async () => {
   console.log('Shutting down domain worker...');
   await Promise.all(workers.map((w) => w.close()));
-  await connection.quit();
   process.exit(0);
 });

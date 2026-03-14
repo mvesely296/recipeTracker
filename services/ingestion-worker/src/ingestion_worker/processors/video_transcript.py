@@ -1,38 +1,71 @@
-"""Video transcript processing for YouTube and Instagram."""
+"""Video transcript processing for YouTube."""
 
+import asyncio
+import re
 from typing import Any
 
 import structlog
 
+from .. import db
+from ..llm import structure_recipe_from_text
+from ..models import ExtractedRecipe
+
 log = structlog.get_logger()
 
 
-async def process_video(job: dict[str, Any]) -> dict[str, Any]:
-    """
-    Process a video to extract recipe from transcript.
+def _extract_youtube_video_id(url: str) -> str | None:
+    """Extract YouTube video ID from various URL formats."""
+    match = re.search(r"(?:v=|youtu\.be/|/embed/|/v/|/shorts/)([a-zA-Z0-9_-]{11})", url)
+    return match.group(1) if match else None
 
-    Args:
-        job: Job data containing source_url for video
 
-    Returns:
-        Extracted transcript and structured recipe data
-    """
-    source_url = job.get("source_url")
-    source_type = job.get("source_type")
+async def _fetch_transcript(video_id: str) -> str:
+    """Fetch YouTube transcript using youtube-transcript-api."""
+    from youtube_transcript_api import YouTubeTranscriptApi
 
-    log.info("Processing video", source_url=source_url, source_type=source_type)
+    def _get() -> str:
+        ytt_api = YouTubeTranscriptApi()
+        transcript = ytt_api.fetch(video_id)
+        return " ".join(snippet.text for snippet in transcript)
 
-    # TODO: Implement actual video processing
-    # 1. Extract video ID from URL
-    # 2. Fetch transcript (YouTube API / Instagram API)
-    # 3. Parse transcript for recipe content
-    # 4. Use LLM to structure into recipe format
+    # youtube-transcript-api is synchronous, run in thread
+    return await asyncio.to_thread(_get)
 
-    return {
-        "status": "completed",
-        "source_url": source_url,
-        "source_type": source_type,
-        "transcript": "",  # TODO: Actual transcript
-        "structured_recipe": None,  # TODO: Parsed recipe
-        "confidence_score": 0.0,
-    }
+
+async def process_video(job: dict[str, Any]) -> ExtractedRecipe:
+    """Process a YouTube video to extract recipe from transcript."""
+    source_url = job.get("source_url", "")
+    job_id = job.get("id", "")
+    user_id = job.get("user_id", "")
+
+    log.info("Processing video", source_url=source_url)
+
+    video_id = _extract_youtube_video_id(source_url)
+    if not video_id:
+        raise ValueError(f"Could not extract YouTube video ID from URL: {source_url}")
+
+    transcript_text = await _fetch_transcript(video_id)
+    if not transcript_text:
+        raise ValueError(f"No transcript available for video: {video_id}")
+
+    # Store transcript as artifact
+    await db.insert_artifact(
+        job_id, "transcript", transcript_text, {"video_id": video_id, "url": source_url}
+    )
+
+    # Structure via LLM
+    recipe = await structure_recipe_from_text(
+        transcript_text, "YouTube cooking video transcript"
+    )
+    recipe.confidence_score = 0.5
+
+    # Store extracted draft
+    await db.insert_artifact(
+        job_id, "extracted_draft", recipe.model_dump_json(), {"source": "youtube_llm"}
+    )
+
+    # Insert recipe into database
+    recipe_id = await db.insert_recipe(user_id, recipe, "youtube", source_url, job_id)
+    log.info("Recipe created from YouTube", recipe_id=recipe_id, title=recipe.title)
+
+    return recipe

@@ -6,7 +6,7 @@ export const weekSchema = z
   .regex(/^\d{4}-W(0[1-9]|[1-4]\d|5[0-3])$/, 'Week must be in format YYYY-WXX (e.g., 2025-W01)');
 
 export const generateListParamsSchema = z.object({
-  week: weekSchema,
+  id: weekSchema,
 });
 
 export const mealPlanEntrySchema = z.object({

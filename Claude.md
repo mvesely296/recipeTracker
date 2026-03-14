@@ -12,6 +12,37 @@ When working on this codebase:
 
 ---
 
+## Architecture Decisions (deviations from original spec)
+
+1. **Worker writes to Postgres directly** — the original design had
+   workers storing results in Redis with a 1hr TTL. This was replaced
+   with direct Postgres writes via psycopg (async). Redis is used only
+   as a job queue (LPUSH/BLPOP on `ingestion:jobs`).
+
+2. **OpenAI Vision for OCR** — replaced pytesseract with gpt-4o-mini
+   Vision API. More accurate for recipe photos/handwriting, no system
+   binary dependency (Tesseract).
+
+3. **JSON-LD first, LLM fallback for URLs** — most recipe sites embed
+   schema.org/Recipe structured data. Parse it deterministically when
+   available (faster, cheaper, higher confidence). LLM only used when
+   no JSON-LD is found.
+
+4. **youtube-transcript-api for YouTube** — no API key needed. Works on
+   public videos with captions. Synchronous library wrapped in
+   `asyncio.to_thread()`.
+
+5. **Single shared LLM prompt** — all source types (URL text, YouTube
+   transcript, OCR text) use the same `structure_recipe_from_text()`
+   call with a `source_context` parameter. Model: gpt-4o-mini with
+   `response_format=json_object`.
+
+6. **Windows compatibility** — psycopg requires `SelectorEventLoop` on
+   Windows (not ProactorEventLoop). structlog output ASCII-encodes
+   non-ASCII titles for Windows console compatibility.
+
+---
+
 ## Goal
 
 Build a cross‑platform application that: - Stores and organizes recipes
@@ -98,10 +129,13 @@ Background Jobs: - BullMQ - Redis
 
 Language: **Python**
 
-Responsibilities: - OCR parsing - transcript parsing from video -
-ingredient extraction - recipe structuring - normalization of units
+Responsibilities: - OCR via OpenAI Vision (not pytesseract) - transcript
+parsing from YouTube via youtube-transcript-api - recipe structuring via
+gpt-4o-mini with JSON mode - JSON-LD structured data extraction for URLs
+(deterministic, no LLM needed)
 
-Workers process ingestion jobs created by the API.
+Workers process ingestion jobs created by the API. Workers write results
+directly to Postgres (not Redis). Redis is used only for the job queue.
 
 ------------------------------------------------------------------------
 
@@ -122,26 +156,34 @@ Other infra: - Redis for job queues
 
 Handles recipes from multiple sources.
 
-Supported inputs: - manual recipe entry - photo of recipe - URL to
-recipe webpage - Instagram video - YouTube video
+Supported inputs: - manual recipe entry - photo of recipe (OpenAI Vision
+OCR) - URL to recipe webpage (JSON-LD first, LLM fallback) - YouTube
+video (youtube-transcript-api + LLM) - Instagram video (not yet
+implemented — needs video download + Whisper)
 
-Pipeline:
+Pipeline (implemented):
 
-1.  client uploads media or URL
-2.  API creates `ingestion_job`
-3.  worker processes media
-4.  worker extracts structured recipe
-5.  recipe stored as canonical object
+1.  client POSTs to `/api/recipes/import` with sourceType + sourceUrl
+2.  API inserts `ingestion_job` (status=pending) and LPUSHes to Redis
+    `ingestion:jobs` queue
+3.  Python worker BLPOPs job, dispatches by source\_type
+4.  Worker preprocesses (fetch HTML / fetch transcript / OCR image)
+5.  Worker stores `source_media` or `transcript` artifact
+6.  Worker extracts structured recipe (JSON-LD parse or LLM call)
+7.  Worker stores `extracted_draft` artifact
+8.  Worker inserts recipe + ingredients + steps + tags into Postgres
+9.  Worker updates ingestion\_job status=completed with recipe\_id
+10. Client polls `GET /api/ingestion-jobs/{id}` for status + recipeId
 
-Important rule:
+Confidence scores: - JSON-LD extraction: 0.8 - LLM from webpage text:
+0.5 - LLM from YouTube transcript: 0.5 - LLM from OCR text: 0.4 -
+Manual entry: 1.0
 
-Raw extraction is never treated as final truth.
+Three artifact stages exist in `ingestion_artifacts`:
 
-Three stages must exist:
-
--   `source_artifact`
--   `extracted_recipe_draft`
--   `canonical_recipe`
+-   `source_media` (raw HTML) or `transcript` (YouTube) or `ocr_result`
+-   `extracted_draft` (structured JSON before DB insert)
+-   `normalized_recipe` (future: after normalization pass)
 
 ------------------------------------------------------------------------
 
@@ -386,6 +428,10 @@ Recipes
     POST /recipes/import
     POST /recipes/manual
     GET /recipes/{id}
+
+Ingestion Jobs
+
+    GET /ingestion-jobs/{id}
 
 Meal Planning
 

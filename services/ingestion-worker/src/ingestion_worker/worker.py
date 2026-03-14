@@ -7,6 +7,7 @@ from typing import Any
 import redis.asyncio as redis
 import structlog
 
+from . import db
 from .processors.ocr import process_ocr
 from .processors.video_transcript import process_video
 from .processors.recipe_extractor import extract_recipe
@@ -59,31 +60,22 @@ class IngestionWorker:
         log.info("Processing job", job_id=job_id, job_type=job_type)
 
         try:
-            result: dict[str, Any]
+            # Mark job as processing
+            if job_id:
+                await db.update_job_status(job_id, "processing")
 
             match job_type:
                 case "image":
-                    result = await process_ocr(job)
+                    await process_ocr(job)
                 case "youtube" | "instagram":
-                    result = await process_video(job)
+                    await process_video(job)
                 case "url":
-                    result = await extract_recipe(job)
+                    await extract_recipe(job)
                 case _:
-                    result = {"error": f"Unknown job type: {job_type}"}
-
-            # Store result
-            await self.store_result(job_id, result)
+                    raise ValueError(f"Unknown job type: {job_type}")
 
             log.info("Job completed", job_id=job_id)
         except Exception as e:
             log.error("Job failed", job_id=job_id, error=str(e))
-            await self.store_result(job_id, {"error": str(e)})
-
-    async def store_result(self, job_id: str | None, result: dict[str, Any]) -> None:
-        """Store job result in Redis."""
-        if self.redis and job_id:
-            await self.redis.set(
-                f"ingestion:result:{job_id}",
-                json.dumps(result),
-                ex=3600,  # Expire after 1 hour
-            )
+            if job_id:
+                await db.update_job_status(job_id, "failed", error_message=str(e))

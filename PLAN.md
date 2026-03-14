@@ -55,11 +55,15 @@
 - [ ] Meal plan expansion processor
 - [ ] Shopping list generation processor
 - [ ] Product matching processor
-- [ ] URL recipe extraction (structured data parsing)
-- [ ] Image OCR processing (Tesseract/cloud)
-- [ ] YouTube transcript extraction
-- [ ] Instagram video processing
-- [ ] LLM-based recipe structuring
+- [x] URL recipe extraction (JSON-LD + LLM fallback)
+- [x] Image OCR processing (OpenAI Vision)
+- [x] YouTube transcript extraction
+- [ ] Instagram video processing (requires video download + Whisper transcription)
+- [x] LLM-based recipe structuring
+- [x] Ingestion job polling endpoint (GET /ingestion-jobs/{id})
+- [x] Redis queue wiring (API → worker)
+- [x] Worker writes directly to Postgres (replaced Redis result TTL pattern)
+- [x] Multi-language recipe extraction (tested: English, Slovak)
 
 ## Phase 6: AI/ML Features
 
