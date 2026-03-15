@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button, Badge, Spinner, Input, Textarea } from '@recipe-tracker/ui';
 import { useRecipe, useUpdateRecipe, useDeleteRecipe } from '@/hooks/use-recipes';
+import { useIngredientDensities } from '@/hooks/use-ingredient-densities';
 import { useCartStore } from '@/stores/cart-store';
 import { convertDisplayText } from '@/lib/unit-conversion';
 import { IngredientPreviewModal } from '@/components/recipes/IngredientPreviewModal';
@@ -29,6 +30,8 @@ export default function RecipeDetailPage({
   const deleteRecipe = useDeleteRecipe();
   const addRecipe = useCartStore((s) => s.addRecipe);
   const isInCart = useCartStore((s) => s.isRecipeInCart(id));
+  const { data: densityData } = useIngredientDensities();
+  const densityMap = densityData ? new Map(Object.entries(densityData)) : undefined;
 
   const [editing, setEditing] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -61,7 +64,10 @@ export default function RecipeDetailPage({
       id,
       title: editTitle,
       description: editDescription || null,
-      ingredients: editIngredients,
+      ingredients: editIngredients.map((ing) => ({
+        ...ing,
+        displayText: `${ing.quantity} ${ing.unit} ${ing.ingredient}`.trim(),
+      })),
       steps: editSteps,
     });
     setEditing(false);
@@ -257,7 +263,7 @@ export default function RecipeDetailPage({
           ) : (
             <ul className="space-y-2">
               {recipe.ingredients.map((ing, i) => {
-                const display = convertDisplayText(ing.displayText, ing.quantity, ing.unit);
+                const display = convertDisplayText(ing.quantity, ing.unit, ing.ingredient, densityMap);
                 return (
                   <li key={ing.id || i} className="flex items-start gap-2 text-gray-700 dark:text-gray-300">
                     <span className="w-1.5 h-1.5 rounded-full bg-green-500 mt-2 flex-shrink-0" />

@@ -151,9 +151,14 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
                 {isInCart ? 'In Cart' : loading ? 'Adding...' : 'Add to Cart'}
               </Button>
             ) : (
-              <span className="flex-1 text-xs text-yellow-600 dark:text-yellow-400 flex items-center justify-center">
-                Review before adding to cart
-              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 border-yellow-400 text-yellow-600 hover:bg-yellow-50 dark:border-yellow-600 dark:text-yellow-400 dark:hover:bg-yellow-900/20"
+                onClick={(e) => e.preventDefault()}
+              >
+                Needs Review
+              </Button>
             )}
             <button
               onClick={handleDelete}

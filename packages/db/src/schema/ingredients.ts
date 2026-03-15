@@ -25,6 +25,7 @@ export const ingredientCatalog = pgTable('ingredient_catalog', {
   category: ingredientCategoryEnum('category').notNull().default('other'),
   defaultUnit: text('default_unit').notNull().default('unit'),
   aliases: text('aliases').array().default([]),
+  gramsPerCup: real('grams_per_cup'),
   // pgvector column for semantic search (defined as text for Drizzle, actual type is vector(1536))
   embedding: text('embedding'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),

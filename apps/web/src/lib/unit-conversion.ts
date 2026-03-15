@@ -23,6 +23,18 @@ const CONVERSIONS: Record<string, { metric: string; factor: number }> = {
   pints: { metric: 'ml', factor: 473.176 },
 };
 
+// Volume units that can be converted to grams using density data
+const VOLUME_UNIT_TO_CUP_FRACTION: Record<string, number> = {
+  cup: 1,
+  cups: 1,
+  tbsp: 1 / 16,
+  tablespoon: 1 / 16,
+  tablespoons: 1 / 16,
+  tsp: 1 / 48,
+  teaspoon: 1 / 48,
+  teaspoons: 1 / 48,
+};
+
 export function toMetric(quantity: number, unit: string): { quantity: number; unit: string } {
   const conversion = CONVERSIONS[unit.toLowerCase().trim()];
   if (!conversion) return { quantity, unit };
@@ -52,29 +64,84 @@ export function isImperialUnit(unit: string): boolean {
 }
 
 /**
- * Takes a displayText string and replaces the imperial quantity+unit at the
- * start with its metric equivalent. If the unit is not imperial, returns the
- * original displayText unchanged.
- *
- * Examples:
- *   convertDisplayText("4 oz crispy pork cheek", 4, "oz")  => "113.4 g crispy pork cheek"
- *   convertDisplayText("2 cups flour", 2, "cups")          => "473.2 ml flour"
+ * Looks up grams-per-cup for an ingredient using fuzzy matching against the density map.
+ * Tries: exact match, then checks if any key is contained in the ingredient name,
+ * or the ingredient name is contained in any key.
  */
-export function convertDisplayText(displayText: string, quantity: number, unit: string): string {
-  if (!isImperialUnit(unit)) return displayText;
+export function lookupGramsPerCup(
+  ingredient: string,
+  densityMap: Map<string, number>
+): number | null {
+  const lower = ingredient.toLowerCase().trim();
 
-  const m = toMetric(quantity, unit);
+  // Exact match
+  const exact = densityMap.get(lower);
+  if (exact != null) return exact;
 
-  // Build a regex that matches the quantity + unit at the start of the string.
-  // The quantity in displayText might be formatted differently (e.g. "1/2" vs 0.5),
-  // so we match any leading number-like pattern followed by the unit.
-  const escapedUnit = unit.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const pattern = new RegExp(`^[\\d./\\s-]+\\s*${escapedUnit}\\b`, 'i');
+  // Check if any density key is a substring of the ingredient
+  // e.g. "parmesan cheese" contains "parmesan"
+  // Prefer longest match to avoid false positives
+  let bestMatch: string | null = null;
+  let bestLen = 0;
+  for (const [key, _val] of densityMap) {
+    if (lower.includes(key) && key.length > bestLen) {
+      bestMatch = key;
+      bestLen = key.length;
+    }
+  }
+  if (bestMatch) return densityMap.get(bestMatch)!;
 
-  if (pattern.test(displayText)) {
-    return displayText.replace(pattern, `${m.quantity} ${m.unit}`);
+  // Check if ingredient is a substring of any density key
+  // e.g. "flour" matches "all-purpose flour"
+  for (const [key, val] of densityMap) {
+    if (key.includes(lower)) return val;
   }
 
-  // Fallback: just prepend metric and strip original quantity+unit manually
-  return `${m.quantity} ${m.unit} ${displayText.replace(new RegExp(`^[\\d./\\s-]+\\s*${escapedUnit}\\s*`, 'i'), '')}`;
+  return null;
+}
+
+/**
+ * Converts a quantity+unit+ingredient into a metric display string.
+ * Uses density data when available for volume-to-weight conversion of solids.
+ * Falls back to standard ml conversion for volume units without density data.
+ *
+ * Examples:
+ *   convertDisplayText(2, "tbsp", "Parmesan cheese", densityMap)  => "13.8 g Parmesan cheese"
+ *   convertDisplayText(1, "cup", "flour", densityMap)             => "120 g flour"
+ *   convertDisplayText(1, "cup", "stock")                         => "236.6 ml stock"
+ *   convertDisplayText(4, "oz", "pork cheek")                     => "113.4 g pork cheek"
+ */
+export function convertDisplayText(
+  quantity: number,
+  unit: string,
+  ingredient: string,
+  densityMap?: Map<string, number>
+): string {
+  if (!isImperialUnit(unit)) {
+    return `${quantity} ${unit} ${ingredient}`.trim();
+  }
+
+  const unitLower = unit.toLowerCase().trim();
+  const cupFraction = VOLUME_UNIT_TO_CUP_FRACTION[unitLower];
+
+  // If it's a volume unit and we have density data, convert to grams
+  if (cupFraction != null && densityMap) {
+    const gramsPerCup = lookupGramsPerCup(ingredient, densityMap);
+    if (gramsPerCup != null) {
+      let grams = quantity * cupFraction * gramsPerCup;
+      let metricUnit = 'g';
+
+      if (grams >= 1000) {
+        grams /= 1000;
+        metricUnit = 'kg';
+      }
+
+      grams = Math.round(grams * 10) / 10;
+      return `${grams} ${metricUnit} ${ingredient}`.trim();
+    }
+  }
+
+  // Fall back to standard conversion (ml for volume, g for weight)
+  const m = toMetric(quantity, unit);
+  return `${m.quantity} ${m.unit} ${ingredient}`.trim();
 }

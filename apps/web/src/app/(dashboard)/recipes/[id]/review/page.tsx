@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button, Spinner, Input, Textarea } from '@recipe-tracker/ui';
 import { useRecipe, useUpdateRecipe, useDeleteRecipe } from '@/hooks/use-recipes';
+import { useJobStore } from '@/stores/job-store';
 
 export default function RecipeReviewPage({
   params,
@@ -16,6 +17,7 @@ export default function RecipeReviewPage({
   const { data: recipe, isLoading, error } = useRecipe(id);
   const updateRecipe = useUpdateRecipe();
   const deleteRecipe = useDeleteRecipe();
+  const removeJobByRecipeId = useJobStore((s) => s.removeByRecipeId);
 
   // Edit state
   const [editTitle, setEditTitle] = useState('');
@@ -48,10 +50,14 @@ export default function RecipeReviewPage({
       id,
       title: editTitle,
       description: editDescription || null,
-      ingredients: editIngredients,
+      ingredients: editIngredients.map((ing) => ({
+        ...ing,
+        displayText: `${ing.quantity} ${ing.unit} ${ing.ingredient}`.trim(),
+      })),
       steps: editSteps,
       approved: true,
     });
+    removeJobByRecipeId(id);
     router.push(`/recipes/${id}` as any);
   };
 
@@ -60,7 +66,10 @@ export default function RecipeReviewPage({
       id,
       title: editTitle,
       description: editDescription || null,
-      ingredients: editIngredients,
+      ingredients: editIngredients.map((ing) => ({
+        ...ing,
+        displayText: `${ing.quantity} ${ing.unit} ${ing.ingredient}`.trim(),
+      })),
       steps: editSteps,
       approved: false,
     });
@@ -92,7 +101,7 @@ export default function RecipeReviewPage({
   }
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-6xl mx-auto">
       <Link href={"/recipes" as any} className="text-sm text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 mb-4 inline-block">
         &larr; Back to Recipes
       </Link>
@@ -131,7 +140,7 @@ export default function RecipeReviewPage({
 
       <div className="grid md:grid-cols-2 gap-8 mb-8">
         {/* Ingredients */}
-        <div>
+        <div className="min-w-0">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Ingredients</h2>
           <div className="space-y-2">
             {editIngredients.map((ing, i) => (
@@ -144,7 +153,7 @@ export default function RecipeReviewPage({
                     next[i] = { ...next[i], quantity: parseFloat(e.target.value) || 0 };
                     setEditIngredients(next);
                   }}
-                  className="w-16"
+                  className="w-20"
                 />
                 <Input
                   placeholder="Unit"
@@ -154,7 +163,7 @@ export default function RecipeReviewPage({
                     next[i] = { ...next[i], unit: e.target.value };
                     setEditIngredients(next);
                   }}
-                  className="w-20"
+                  className="w-24"
                 />
                 <Input
                   placeholder="Ingredient"
@@ -169,7 +178,7 @@ export default function RecipeReviewPage({
                 <button
                   type="button"
                   onClick={() => setEditIngredients(editIngredients.filter((_, idx) => idx !== i))}
-                  className="p-1 text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
+                  className="flex-shrink-0 w-8 h-8 rounded-lg bg-red-100 hover:bg-red-200 dark:bg-red-900/40 dark:hover:bg-red-800/60 text-red-600 dark:text-red-400 flex items-center justify-center transition-colors"
                 >
                   <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -189,11 +198,11 @@ export default function RecipeReviewPage({
         </div>
 
         {/* Steps */}
-        <div>
+        <div className="min-w-0">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Steps</h2>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {editSteps.map((step, i) => (
-              <div key={i} className="flex gap-2 items-start">
+              <div key={i} className="flex gap-3 items-start">
                 <span className="flex-shrink-0 w-7 h-7 rounded-full bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 text-sm font-medium flex items-center justify-center mt-1">
                   {i + 1}
                 </span>
@@ -204,13 +213,13 @@ export default function RecipeReviewPage({
                     next[i] = { ...next[i], instruction: e.target.value };
                     setEditSteps(next);
                   }}
-                  rows={2}
+                  rows={3}
                   className="flex-1"
                 />
                 <button
                   type="button"
                   onClick={() => setEditSteps(editSteps.filter((_, idx) => idx !== i))}
-                  className="p-1 text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 mt-1"
+                  className="flex-shrink-0 w-8 h-8 rounded-lg bg-red-100 hover:bg-red-200 dark:bg-red-900/40 dark:hover:bg-red-800/60 text-red-600 dark:text-red-400 flex items-center justify-center transition-colors mt-1"
                 >
                   <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />

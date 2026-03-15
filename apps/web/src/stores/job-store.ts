@@ -15,6 +15,7 @@ interface JobStore {
   jobs: JobEntry[];
   addJob: (job: Pick<JobEntry, 'jobId' | 'sourceUrl' | 'title'>) => void;
   updateJob: (jobId: string, update: Partial<JobEntry>) => void;
+  removeByRecipeId: (recipeId: string) => void;
   clearCompleted: () => void;
   getActiveJobs: () => JobEntry[];
 }
@@ -28,6 +29,10 @@ export const useJobStore = create<JobStore>((set, get) => ({
   updateJob: (jobId, update) =>
     set((state) => ({
       jobs: state.jobs.map((j) => (j.jobId === jobId ? { ...j, ...update } : j)),
+    })),
+  removeByRecipeId: (recipeId) =>
+    set((state) => ({
+      jobs: state.jobs.filter((j) => j.recipeId !== recipeId),
     })),
   clearCompleted: () =>
     set((state) => ({

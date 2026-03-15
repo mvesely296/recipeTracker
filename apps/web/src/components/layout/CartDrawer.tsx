@@ -2,6 +2,7 @@
 
 import { Drawer, Button } from '@recipe-tracker/ui';
 import { useCartStore } from '@/stores/cart-store';
+import { useIngredientDensities } from '@/hooks/use-ingredient-densities';
 import { convertDisplayText } from '@/lib/unit-conversion';
 
 interface CartDrawerProps {
@@ -29,6 +30,8 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
   const items = useCartStore((s) => s.items);
   const removeItem = useCartStore((s) => s.removeItem);
   const clearCart = useCartStore((s) => s.clearCart);
+  const { data: densityData } = useIngredientDensities();
+  const densityMap = densityData ? new Map(Object.entries(densityData)) : undefined;
 
   const grouped = items.reduce<Record<string, typeof items>>((acc, item) => {
     const cat = item.category || 'other';
@@ -36,10 +39,6 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
     acc[cat].push(item);
     return acc;
   }, {});
-
-  const formatItemDisplay = (item: { displayText: string; quantity: number; unit: string }) => {
-    return convertDisplayText(item.displayText, item.quantity, item.unit);
-  };
 
   return (
     <Drawer open={open} onClose={onClose} title="Shopping Cart">
@@ -54,13 +53,15 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
       ) : (
         <>
           <div className="flex justify-between items-center mb-4">
-            <span className="text-sm text-gray-500 dark:text-gray-400">{items.length} item{items.length !== 1 ? 's' : ''}</span>
+            <span className="text-sm text-gray-500 dark:text-gray-400">
+              {items.length} item{items.length !== 1 ? 's' : ''}
+            </span>
             <Button variant="ghost" size="sm" onClick={clearCart}>
               Clear all
             </Button>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-5">
             {Object.entries(grouped).map(([category, categoryItems]) => (
               <div key={category}>
                 <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
@@ -70,14 +71,14 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
                   {categoryItems.map((item) => (
                     <div
                       key={item.ingredientName}
-                      className="flex items-start justify-between gap-2 py-2 border-b border-gray-100 dark:border-gray-700"
+                      className="flex items-center gap-3 p-3 rounded-xl bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500"
                     >
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 capitalize">
+                        <p className="text-base font-bold text-gray-900 dark:text-gray-100 capitalize">
                           {item.ingredientName}
                         </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {formatItemDisplay(item)}
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {convertDisplayText(item.quantity, item.unit, item.ingredientName, densityMap)}
                         </p>
                         {item.sourceRecipeTitles.length > 0 && (
                           <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 truncate">
@@ -88,15 +89,11 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
                       <button
                         type="button"
                         onClick={() => removeItem(item.ingredientName)}
-                        className="text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 p-1 flex-shrink-0"
+                        className="flex-shrink-0 w-10 h-10 rounded-full bg-red-500 hover:bg-red-600 text-white shadow-md hover:shadow-lg flex items-center justify-center transition-all duration-200"
                         aria-label={`Remove ${item.ingredientName}`}
                       >
-                        <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                          <path
-                            fillRule="evenodd"
-                            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                            clipRule="evenodd"
-                          />
+                        <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
                         </svg>
                       </button>
                     </div>
