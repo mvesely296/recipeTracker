@@ -18,8 +18,8 @@ const ingredientCategoryEnum = z.enum([
 ]);
 
 export const ingredientSchema = z.object({
-  quantity: z.number().positive(),
-  unit: z.string().min(1),
+  quantity: z.number().nonnegative(),
+  unit: z.string(),
   ingredient: z.string().min(1),
   attributes: z.string().optional(),
   brandCandidate: z.string().optional(),

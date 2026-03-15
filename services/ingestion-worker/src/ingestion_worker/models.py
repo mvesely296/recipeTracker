@@ -26,8 +26,8 @@ class IngredientCategory(str, Enum):
 class ExtractedIngredient(BaseModel):
     """A single ingredient extracted from a recipe."""
 
-    quantity: float = Field(description="Numeric quantity, e.g. 1.5")
-    unit: str = Field(description="Unit of measurement, e.g. 'cup', 'tbsp', 'whole'")
+    quantity: float | None = Field(default=0, description="Numeric quantity, e.g. 1.5")
+    unit: str | None = Field(default="to taste", description="Unit of measurement, e.g. 'cup', 'tbsp', 'whole'")
     ingredient: str = Field(description="Base ingredient name, e.g. 'tomatoes'")
     attributes: str | None = Field(
         default=None, description="Modifiers like 'diced', 'whole peeled'"

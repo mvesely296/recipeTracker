@@ -10,6 +10,7 @@ import structlog
 from . import db
 from .processors.ocr import process_ocr
 from .processors.video_transcript import process_video
+from .processors.instagram import process_instagram
 from .processors.recipe_extractor import extract_recipe
 
 log = structlog.get_logger()
@@ -67,8 +68,10 @@ class IngestionWorker:
             match job_type:
                 case "image":
                     await process_ocr(job)
-                case "youtube" | "instagram":
+                case "youtube":
                     await process_video(job)
+                case "instagram":
+                    await process_instagram(job)
                 case "url":
                     await extract_recipe(job)
                 case _:

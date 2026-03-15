@@ -6,11 +6,12 @@ import { Button, Input, Textarea } from '@recipe-tracker/ui';
 import { useImportRecipe } from '@/hooks/use-recipes';
 import { useJobStore } from '@/stores/job-store';
 
-function detectSourceType(url: string): 'youtube' | 'url' {
+function detectSourceType(url: string): 'youtube' | 'instagram' | 'url' {
   try {
     const parsed = new URL(url);
     const host = parsed.hostname.replace('www.', '');
     if (host === 'youtube.com' || host === 'youtu.be') return 'youtube';
+    if (host === 'instagram.com') return 'instagram';
   } catch {
     // Not a valid URL yet
   }
@@ -98,7 +99,7 @@ export function ImportRecipeForm() {
           rows={4}
         />
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-          Supports recipe websites and YouTube videos. Enter one URL per line.
+          Supports recipe websites, YouTube videos, and Instagram reels. Enter one URL per line.
         </p>
       </div>
 

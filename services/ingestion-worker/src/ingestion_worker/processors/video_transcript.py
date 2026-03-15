@@ -1,4 +1,4 @@
-"""Video transcript processing for YouTube."""
+"""YouTube video transcript processing."""
 
 import asyncio
 import re

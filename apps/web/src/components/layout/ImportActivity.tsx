@@ -15,22 +15,27 @@ function JobStatusIcon({ status }: { status: JobEntry['status'] }) {
 
 function JobRow({ job, onNavigate }: { job: JobEntry; onNavigate?: () => void }) {
   return (
-    <div className="flex items-center gap-3 py-2">
-      <JobStatusIcon status={job.status} />
-      <span className="truncate flex-1 text-sm text-gray-700 dark:text-gray-300">
-        {job.title || job.sourceUrl}
-      </span>
-      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-        job.status === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' :
-        job.status === 'failed' ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300' :
-        'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
-      }`}>
-        {job.status}
-      </span>
-      {job.status === 'completed' && job.recipeId && (
-        <Link href={`/recipes/${job.recipeId}/review` as any} onClick={onNavigate}>
-          <Button variant="primary" size="sm">Review</Button>
-        </Link>
+    <div className="py-2">
+      <div className="flex items-center gap-3">
+        <JobStatusIcon status={job.status} />
+        <span className="truncate flex-1 text-sm text-gray-700 dark:text-gray-300">
+          {job.title || job.sourceUrl}
+        </span>
+        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+          job.status === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' :
+          job.status === 'failed' ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300' :
+          'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+        }`}>
+          {job.status}
+        </span>
+        {job.status === 'completed' && job.recipeId && (
+          <Link href={`/recipes/${job.recipeId}/review` as any} onClick={onNavigate}>
+            <Button variant="primary" size="sm">Review</Button>
+          </Link>
+        )}
+      </div>
+      {job.status === 'failed' && job.errorMessage && (
+        <p className="mt-1 ml-7 text-xs text-red-600 dark:text-red-400">{job.errorMessage}</p>
       )}
     </div>
   );
@@ -87,22 +92,29 @@ export function ImportActivity() {
     const job = jobs[0];
     return (
       <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 shadow-lg z-30">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
-          <JobStatusIcon status={job.status} />
-          <span className="truncate flex-1 text-sm text-gray-700 dark:text-gray-300">
-            {job.status === 'pending' || job.status === 'processing'
-              ? `Importing: ${job.title || job.sourceUrl}`
-              : job.title || job.sourceUrl}
-          </span>
-          {job.status === 'completed' && job.recipeId && (
-            <Link href={`/recipes/${job.recipeId}/review` as any}>
-              <Button variant="primary" size="sm">Review</Button>
-            </Link>
-          )}
-          {hasCompleted && (
-            <Button variant="ghost" size="sm" onClick={clearCompleted}>
-              Dismiss
-            </Button>
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <div className="flex items-center gap-3">
+            <JobStatusIcon status={job.status} />
+            <span className="truncate flex-1 text-sm text-gray-700 dark:text-gray-300">
+              {job.status === 'pending' || job.status === 'processing'
+                ? `Importing: ${job.title || job.sourceUrl}`
+                : job.status === 'failed'
+                  ? `Failed: ${job.title || job.sourceUrl}`
+                  : job.title || job.sourceUrl}
+            </span>
+            {job.status === 'completed' && job.recipeId && (
+              <Link href={`/recipes/${job.recipeId}/review` as any}>
+                <Button variant="primary" size="sm">Review</Button>
+              </Link>
+            )}
+            {hasCompleted && (
+              <Button variant="ghost" size="sm" onClick={clearCompleted}>
+                Dismiss
+              </Button>
+            )}
+          </div>
+          {job.status === 'failed' && job.errorMessage && (
+            <p className="mt-1 text-xs text-red-600 dark:text-red-400">{job.errorMessage}</p>
           )}
         </div>
       </div>
