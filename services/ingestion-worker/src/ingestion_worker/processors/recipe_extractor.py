@@ -67,7 +67,8 @@ async def extract_recipe(job: dict[str, Any]) -> ExtractedRecipe:
     )
 
     # Insert recipe into database
-    recipe_id = await db.insert_recipe(user_id, recipe, "url", source_url, job_id)
+    title_override = job.get("title")
+    recipe_id = await db.insert_recipe(user_id, recipe, "url", source_url, job_id, title_override=title_override)
     log.info("Recipe created from URL", recipe_id=recipe_id, title=recipe.title)
 
     return recipe

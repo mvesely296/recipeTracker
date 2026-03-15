@@ -14,6 +14,7 @@ export interface Recipe extends Timestamps {
   sourceUrl: string | null;
   confidenceScore: number;
   imageUrl: string | null;
+  approved: boolean;
 }
 
 export type RecipeSourceType = 'manual' | 'url' | 'image' | 'youtube' | 'instagram';
@@ -69,4 +70,16 @@ export interface ImportRecipeInput {
   sourceType: Exclude<RecipeSourceType, 'manual'>;
   sourceUrl?: string;
   sourceMediaId?: string;
+  title?: string;
+}
+
+export interface UpdateRecipeInput {
+  title?: string;
+  description?: string | null;
+  servings?: number;
+  prepTimeMinutes?: number | null;
+  cookTimeMinutes?: number | null;
+  ingredients?: Omit<NormalizedIngredient, 'id'>[];
+  steps?: { stepNumber: number; instruction: string; durationMinutes?: number }[];
+  tags?: string[];
 }

@@ -41,6 +41,92 @@ When working on this codebase:
    Windows (not ProactorEventLoop). structlog output ASCII-encodes
    non-ASCII titles for Windows console compatibility.
 
+7. **Drizzle ORM for local dev API routes** — the original API route
+   handlers used Supabase PostgREST client (`supabase.from('table')`).
+   Since local dev runs plain Postgres without PostgREST, all recipe-
+   related route handlers were rewritten to use Drizzle ORM directly
+   (`getDb()` from `@/lib/db`). When Supabase is configured (production),
+   the auth middleware uses Supabase Auth; locally it bypasses auth with
+   a dev user (`00000000-0000-0000-0000-000000000000`).
+
+8. **Recipe approval flow** — imported recipes have `approved=false` and
+   must be reviewed/approved before they appear as normal recipes. Manual
+   recipes have `approved=true` by default. A dedicated review page at
+   `/recipes/{id}/review` allows editing and approving imported recipes.
+
+9. **Metric-only units** — all ingredient displays auto-convert imperial
+   units to metric using `convertDisplayText()` from `lib/unit-conversion.ts`.
+   No toggle — metric is always shown.
+
+10. **Dark mode default** — Tailwind `darkMode: 'class'` with `dark` class
+    on `<html>` by default. Theme stored in localStorage via Zustand.
+    Toggle in navbar (sun/moon icon).
+
+---
+
+## Local Development Setup
+
+### Prerequisites
+- Node.js >= 20, pnpm 9.x
+- Docker Desktop (for Postgres + Redis)
+- Python >= 3.12 (for ingestion worker; `py -3.14` on Windows)
+
+### Startup sequence (in order)
+
+1. **Start Docker Desktop** (if not running):
+   ```bash
+   "/c/Program Files/Docker/Docker/Docker Desktop.exe" &
+   # Wait ~15-30s for engine to initialize
+   docker ps  # verify containers are up
+   ```
+
+2. **Start Docker containers** (Postgres + Redis + UIs):
+   ```bash
+   cd C:/PycharmProjects/recipeTracker
+   docker compose -f infra/docker/docker-compose.yml up -d
+   ```
+   Services: postgres (5432), redis (6379), redis-commander (8081), pgweb (8082)
+
+3. **Start API server** (port 3001):
+   ```bash
+   pnpm --filter @recipe-tracker/api dev
+   ```
+   The API has `.env.local` at `apps/api/.env.local` with DATABASE_URL and REDIS_URL.
+   Without Supabase env vars, auth is bypassed with dev user `00000000-0000-0000-0000-000000000000`.
+
+4. **Start web app** (port 3000):
+   ```bash
+   pnpm --filter @recipe-tracker/web dev
+   ```
+   Web app calls API at `http://localhost:3001/api` (configured via NEXT_PUBLIC_API_URL).
+   Uses `credentials: 'omit'` for local dev (no CORS cookie issues).
+
+5. **Start Python ingestion worker** (processes URL/YouTube/image imports):
+   ```bash
+   cd services/ingestion-worker
+   DATABASE_URL="postgres://recipe_user:recipe_password@localhost:5432/recipe_tracker" \
+   REDIS_URL="redis://localhost:6379" \
+   OPENAI_API_KEY="<key from .env>" \
+   py -3.14 -m ingestion_worker.main
+   ```
+   On Windows, uses `SelectorEventLoop` (required by psycopg async).
+   Worker must be **restarted** when its Python code changes (no hot reload).
+
+### Key dev notes
+- API and web servers have HMR via Turbopack — code changes are picked up automatically
+- Python worker does NOT have hot reload — must be killed and restarted after code changes
+- Dev user is auto-created in DB: `INSERT INTO users (id, email, display_name) VALUES ('00000000-0000-0000-0000-000000000000', 'dev@localhost', 'Dev User') ON CONFLICT DO NOTHING;`
+- `pnpm turbo typecheck` to verify all packages compile
+- `pnpm turbo typecheck --filter=@recipe-tracker/web --force` for a single package
+
+### Service URLs (local dev)
+| Service | URL |
+|---------|-----|
+| Web app | http://localhost:3000/recipes |
+| API     | http://localhost:3001/api |
+| pgweb   | http://localhost:8082 |
+| Redis Commander | http://localhost:8081 |
+
 ---
 
 ## Goal
@@ -425,13 +511,21 @@ User controls:
 
 Recipes
 
-    POST /recipes/import
-    POST /recipes/manual
-    GET /recipes/{id}
+    GET /recipes                (paginated list, search, tag filter)
+    POST /recipes/import        (queue import job, optional title)
+    POST /recipes/manual        (create recipe directly)
+    GET /recipes/{id}           (full recipe with ingredients/steps/tags)
+    PATCH /recipes/{id}         (update recipe fields, approve)
+    DELETE /recipes/{id}        (delete recipe, cascades)
+
+Tags
+
+    GET /tags                   (distinct tags for user)
 
 Ingestion Jobs
 
-    GET /ingestion-jobs/{id}
+    GET /ingestion-jobs         (list recent jobs for user)
+    GET /ingestion-jobs/{id}    (poll single job status)
 
 Meal Planning
 

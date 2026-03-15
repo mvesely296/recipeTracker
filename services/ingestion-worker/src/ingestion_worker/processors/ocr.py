@@ -72,7 +72,8 @@ async def process_ocr(job: dict[str, Any]) -> ExtractedRecipe:
     )
 
     # Insert recipe into database
-    recipe_id = await db.insert_recipe(user_id, recipe, "image", None, job_id)
+    title_override = job.get("title")
+    recipe_id = await db.insert_recipe(user_id, recipe, "image", None, job_id, title_override=title_override)
     log.info("Recipe created from image", recipe_id=recipe_id, title=recipe.title)
 
     return recipe

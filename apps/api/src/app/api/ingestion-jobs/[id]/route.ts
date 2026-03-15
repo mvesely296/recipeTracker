@@ -1,38 +1,50 @@
-import { z } from 'zod';
-import { createRouteHandler, successResponse } from '@/lib/api/route-handler';
-import { uuidSchema } from '@/lib/validators/common';
-import { NotFoundError, ForbiddenError } from '@/lib/api/errors';
+import { NextRequest, NextResponse } from 'next/server';
+import { eq, and } from 'drizzle-orm';
+import { getDb } from '@/lib/db';
+import { ingestionJobs } from '@recipe-tracker/db';
+import { getAuthenticatedUser } from '@/lib/supabase/server';
+import { handleError } from '@/lib/api/response';
 
-const paramsSchema = z.object({
-  id: uuidSchema,
-});
-
-export const GET = createRouteHandler({
-  paramsSchema,
-  requireAuth: true,
-
-  async handler(_request, { user, supabase }, { params }) {
-    const { data: job, error } = await supabase
-      .from('ingestion_jobs')
-      .select('id, status, recipe_id, error_message, created_at, completed_at, user_id')
-      .eq('id', params.id)
-      .single();
-
-    if (error || !job) {
-      throw new NotFoundError('Ingestion job');
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getAuthenticatedUser();
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
+        { status: 401 }
+      );
     }
 
-    if (job.user_id !== user.id) {
-      throw new ForbiddenError();
+    const { id } = await params;
+    const db = getDb();
+
+    const [job] = await db
+      .select()
+      .from(ingestionJobs)
+      .where(and(eq(ingestionJobs.id, id), eq(ingestionJobs.userId, user.id)));
+
+    if (!job) {
+      return NextResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Ingestion job not found' } },
+        { status: 404 }
+      );
     }
 
-    return successResponse({
-      id: job.id,
-      status: job.status,
-      recipeId: job.recipe_id,
-      errorMessage: job.error_message,
-      createdAt: job.created_at,
-      completedAt: job.completed_at,
+    return NextResponse.json({
+      success: true,
+      data: {
+        id: job.id,
+        status: job.status,
+        recipeId: job.recipeId,
+        errorMessage: job.errorMessage,
+        createdAt: job.createdAt,
+        completedAt: job.completedAt,
+      },
     });
-  },
-});
+  } catch (error) {
+    return handleError(error);
+  }
+}

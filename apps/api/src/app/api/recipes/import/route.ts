@@ -1,29 +1,37 @@
-import { createRouteHandler, successResponse } from '@/lib/api/route-handler';
-import { importRecipeSchema, type ImportRecipeInput } from '@/lib/validators/recipes';
-import { ConflictError } from '@/lib/api/errors';
+import { NextRequest, NextResponse } from 'next/server';
+import { getDb } from '@/lib/db';
+import { ingestionJobs } from '@recipe-tracker/db';
+import { importRecipeSchema } from '@/lib/validators/recipes';
+import { getAuthenticatedUser } from '@/lib/supabase/server';
 import { getRedisClient } from '@/lib/redis';
+import { handleError } from '@/lib/api/response';
 
-export const POST = createRouteHandler<ImportRecipeInput>({
-  bodySchema: importRecipeSchema,
-  requireAuth: true,
+export async function POST(request: NextRequest) {
+  try {
+    const user = await getAuthenticatedUser();
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
+        { status: 401 }
+      );
+    }
 
-  async handler(_request, { user, supabase }, { body }) {
+    const rawBody = await request.json();
+    const body = importRecipeSchema.parse(rawBody);
+
+    const db = getDb();
+
     // Create ingestion job
-    const { data: job, error } = await supabase
-      .from('ingestion_jobs')
-      .insert({
-        user_id: user.id,
-        source_type: body.sourceType,
-        source_url: body.sourceUrl,
-        source_media_id: body.sourceMediaId,
+    const [job] = await db
+      .insert(ingestionJobs)
+      .values({
+        userId: user.id,
+        sourceType: body.sourceType,
+        sourceUrl: body.sourceUrl ?? null,
+        sourceMediaId: body.sourceMediaId ?? null,
         status: 'pending',
       })
-      .select()
-      .single();
-
-    if (error) {
-      throw new ConflictError('Failed to create import job');
-    }
+      .returning();
 
     // Push job to Redis queue for worker processing
     const redis = getRedisClient();
@@ -35,16 +43,22 @@ export const POST = createRouteHandler<ImportRecipeInput>({
         source_type: body.sourceType,
         source_url: body.sourceUrl,
         source_media_id: body.sourceMediaId,
+        title: body.title ?? null,
       })
     );
 
-    return successResponse(
+    return NextResponse.json(
       {
-        jobId: job.id,
-        status: 'pending',
-        message: 'Recipe import job created. Poll /api/ingestion-jobs/{jobId} for status.',
+        success: true,
+        data: {
+          jobId: job.id,
+          status: 'pending',
+          message: 'Recipe import job created. Poll /api/ingestion-jobs/{jobId} for status.',
+        },
       },
-      202
+      { status: 202 }
     );
-  },
-});
+  } catch (error) {
+    return handleError(error);
+  }
+}

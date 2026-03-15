@@ -29,10 +29,30 @@
 
 - [x] Web app scaffold (Next.js + Tailwind)
 - [x] Mobile app scaffold (Expo Router)
-- [x] Shared UI components (Button, Card, Input)
+- [x] Shared UI components (Button, Card, Input, Badge, Textarea, Tabs, Drawer, Spinner)
+- [x] Recipe list endpoint (GET /api/recipes with pagination + search + tag filter)
+- [x] Recipe CRUD endpoints (GET, POST manual, POST import, PATCH, DELETE)
+- [x] Tags endpoint (GET /api/tags — distinct tags for user)
+- [x] Ingestion jobs list endpoint (GET /api/ingestion-jobs)
+- [x] Web: Dashboard layout with navbar (theme toggle, cart icon) + cart drawer
+- [x] Web: Recipe list page (responsive card grid, search, tag filter chips, pagination)
+- [x] Web: Recipe detail page (ingredients, steps, tags, metadata, inline edit, delete)
+- [x] Web: Recipe review/approval page for imported recipes
+- [x] Web: Add recipe page (manual entry form + batch URL import with job tracking)
+- [x] Web: Cart drawer (Zustand store, ingredient aggregation, metric conversion)
+- [x] Web: Ingredient preview modal (playful UI with red minus / green plus buttons)
+- [x] Web: Import activity bar (persistent bottom bar showing import job status)
+- [x] Web: Dark mode (default dark, toggle in navbar, localStorage persistence)
+- [x] Web: Auto metric unit conversion (imperial → metric, no toggle)
+- [x] Mobile: Recipes tab (FlatList + FAB + cart badge)
+- [x] Mobile: Recipe detail screen (ScrollView + Add to Cart)
+- [x] Mobile: Add recipe screen (manual form + URL import with polling)
+- [x] Mobile: Cart screen (SectionList grouped by category)
+- [x] TanStack Query hooks + API client (web + mobile)
+- [x] Zustand cart store with ingredient aggregation (web + mobile)
+- [x] Zustand job store for tracking import progress (web)
+- [x] Recipe approval flow (imported recipes require review before use)
 - [ ] Authentication flow (login, signup, logout)
-- [ ] Recipe list and detail views
-- [ ] Recipe creation form
 - [ ] Pantry management UI
 - [ ] Meal plan calendar view
 - [ ] Shopping list UI with checkboxes
@@ -120,7 +140,7 @@
 
 ---
 
-**Last Updated**: 2026-03-14
+**Last Updated**: 2026-03-15
 
 **Note**: Update this file when:
 - A new feature is implemented (check it off)

@@ -1,72 +1,91 @@
-import { createRouteHandler, successResponse } from '@/lib/api/route-handler';
-import { createManualRecipeSchema, type CreateManualRecipeInput } from '@/lib/validators/recipes';
+import { NextRequest, NextResponse } from 'next/server';
+import { getDb } from '@/lib/db';
+import { recipes, recipeIngredients, recipeSteps, recipeTags } from '@recipe-tracker/db';
+import { createManualRecipeSchema } from '@/lib/validators/recipes';
+import { getAuthenticatedUser } from '@/lib/supabase/server';
+import { handleError } from '@/lib/api/response';
 
-export const POST = createRouteHandler<CreateManualRecipeInput>({
-  bodySchema: createManualRecipeSchema,
-  requireAuth: true,
+export async function POST(request: NextRequest) {
+  try {
+    const user = await getAuthenticatedUser();
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
+        { status: 401 }
+      );
+    }
 
-  async handler(_request, { user, supabase }, { body }) {
+    const rawBody = await request.json();
+    const body = createManualRecipeSchema.parse(rawBody);
+
+    const db = getDb();
+
     // Create recipe
-    const { data: recipe, error: recipeError } = await supabase
-      .from('recipes')
-      .insert({
-        user_id: user.id,
+    const [recipe] = await db
+      .insert(recipes)
+      .values({
+        userId: user.id,
         title: body.title,
         description: body.description,
         servings: body.servings,
-        prep_time_minutes: body.prepTimeMinutes,
-        cook_time_minutes: body.cookTimeMinutes,
-        source_type: 'manual',
-        confidence_score: 1.0,
+        prepTimeMinutes: body.prepTimeMinutes,
+        cookTimeMinutes: body.cookTimeMinutes,
+        sourceType: 'manual',
+        confidenceScore: 1.0,
       })
-      .select()
-      .single();
-
-    if (recipeError || !recipe) {
-      throw new Error('Failed to create recipe');
-    }
+      .returning();
 
     // Insert ingredients
-    const ingredientRecords = body.ingredients.map((ing, index) => ({
-      recipe_id: recipe.id,
-      order_index: index,
-      quantity: ing.quantity,
-      unit: ing.unit,
-      ingredient: ing.ingredient,
-      attributes: ing.attributes,
-      brand_candidate: ing.brandCandidate,
-      category: ing.category,
-      display_text: ing.displayText,
-    }));
-
-    await supabase.from('recipe_ingredients').insert(ingredientRecords);
+    if (body.ingredients.length > 0) {
+      await db.insert(recipeIngredients).values(
+        body.ingredients.map((ing, index) => ({
+          recipeId: recipe.id,
+          orderIndex: index,
+          quantity: ing.quantity,
+          unit: ing.unit,
+          ingredient: ing.ingredient,
+          attributes: ing.attributes ?? null,
+          brandCandidate: ing.brandCandidate ?? null,
+          category: ing.category ?? null,
+          displayText: ing.displayText,
+        }))
+      );
+    }
 
     // Insert steps
-    const stepRecords = body.steps.map((step) => ({
-      recipe_id: recipe.id,
-      step_number: step.stepNumber,
-      instruction: step.instruction,
-      duration_minutes: step.durationMinutes,
-    }));
-
-    await supabase.from('recipe_steps').insert(stepRecords);
+    if (body.steps.length > 0) {
+      await db.insert(recipeSteps).values(
+        body.steps.map((step) => ({
+          recipeId: recipe.id,
+          stepNumber: step.stepNumber,
+          instruction: step.instruction,
+          durationMinutes: step.durationMinutes ?? null,
+        }))
+      );
+    }
 
     // Insert tags
     if (body.tags.length > 0) {
-      const tagRecords = body.tags.map((tag) => ({
-        recipe_id: recipe.id,
-        tag,
-      }));
-      await supabase.from('recipe_tags').insert(tagRecords);
+      await db.insert(recipeTags).values(
+        body.tags.map((tag) => ({
+          recipeId: recipe.id,
+          tag,
+        }))
+      );
     }
 
-    return successResponse(
+    return NextResponse.json(
       {
-        id: recipe.id,
-        title: recipe.title,
-        createdAt: recipe.created_at,
+        success: true,
+        data: {
+          id: recipe.id,
+          title: recipe.title,
+          createdAt: recipe.createdAt,
+        },
       },
-      201
+      { status: 201 }
     );
-  },
-});
+  } catch (error) {
+    return handleError(error);
+  }
+}

@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, integer, real, pgEnum } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, timestamp, integer, real, boolean, pgEnum } from 'drizzle-orm/pg-core';
 import { users, households } from './users';
 import { ingredientCatalog, ingredientCategoryEnum } from './ingredients';
 
@@ -27,6 +27,7 @@ export const recipes = pgTable('recipes', {
   sourceUrl: text('source_url'),
   confidenceScore: real('confidence_score').notNull().default(1.0),
   imageUrl: text('image_url'),
+  approved: boolean('approved').notNull().default(true),
   // pgvector for recipe search
   embedding: text('embedding'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),

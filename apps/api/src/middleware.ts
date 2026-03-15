@@ -31,10 +31,16 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
+  // In local dev without Supabase, skip auth and use a dev user
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    response.headers.set('x-user-id', '00000000-0000-0000-0000-000000000000');
+    return response;
+  }
+
   // Create Supabase client for middleware
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
       cookies: {
         get(name: string) {

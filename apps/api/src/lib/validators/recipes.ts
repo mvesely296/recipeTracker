@@ -38,6 +38,7 @@ export const importRecipeSchema = z
     sourceType: z.enum(['url', 'image', 'youtube', 'instagram']),
     sourceUrl: z.string().url().optional(),
     sourceMediaId: z.string().optional(),
+    title: z.string().min(1).max(255).optional(),
   })
   .refine((data) => data.sourceUrl || data.sourceMediaId, {
     message: 'Either sourceUrl or sourceMediaId is required',
@@ -58,5 +59,25 @@ export const getRecipeParamsSchema = z.object({
   id: uuidSchema,
 });
 
+export const recipeListQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  search: z.string().optional(),
+  tags: z.string().optional(),
+});
+
+export const updateRecipeSchema = z.object({
+  title: z.string().min(1).max(255).optional(),
+  description: z.string().max(2000).optional().nullable(),
+  servings: z.number().int().positive().optional(),
+  prepTimeMinutes: z.number().int().nonnegative().optional().nullable(),
+  cookTimeMinutes: z.number().int().nonnegative().optional().nullable(),
+  ingredients: z.array(ingredientSchema).min(1).optional(),
+  steps: z.array(recipeStepSchema).min(1).optional(),
+  tags: z.array(z.string()).optional(),
+  approved: z.boolean().optional(),
+});
+
 export type ImportRecipeInput = z.infer<typeof importRecipeSchema>;
 export type CreateManualRecipeInput = z.infer<typeof createManualRecipeSchema>;
+export type UpdateRecipeInput = z.infer<typeof updateRecipeSchema>;

@@ -97,29 +97,30 @@ async def insert_recipe(
     source_type: str,
     source_url: str | None,
     job_id: str,
+    title_override: str | None = None,
 ) -> str:
     """Insert a complete recipe with ingredients, steps, and tags. Returns recipe ID."""
     conn = _get_conn()
     recipe_id = str(uuid.uuid4())
 
     async with conn.transaction():
-        # Insert recipe
+        # Insert recipe (use title_override if provided)
         await conn.execute(
             """
             INSERT INTO recipes (
                 id, user_id, title, description, servings,
                 prep_time_minutes, cook_time_minutes,
-                source_type, source_url, confidence_score
+                source_type, source_url, confidence_score, approved
             ) VALUES (
                 %(id)s, %(user_id)s, %(title)s, %(description)s, %(servings)s,
                 %(prep_time_minutes)s, %(cook_time_minutes)s,
-                %(source_type)s, %(source_url)s, %(confidence_score)s
+                %(source_type)s, %(source_url)s, %(confidence_score)s, false
             )
             """,
             {
                 "id": recipe_id,
                 "user_id": user_id,
-                "title": recipe.title,
+                "title": title_override or recipe.title,
                 "description": recipe.description,
                 "servings": recipe.servings,
                 "prep_time_minutes": recipe.prep_time_minutes,
